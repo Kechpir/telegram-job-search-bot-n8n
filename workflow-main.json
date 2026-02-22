@@ -1,0 +1,1538 @@
+{
+  "name": "workflow-job-search-telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2464,
+        400
+      ],
+      "id": "9d7b4443-def6-4514-a616-6eb0be4c055f",
+      "name": "Incoming Request",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot (create in n8n)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get message text from Telegram\nconst query = $json.message.text || \"\";\n\n// Trim and store as filters\nreturn {\n  main_query: query,\n  filters: query.trim()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2304,
+        400
+      ],
+      "id": "7071e0c9-deae-4ec0-8ab6-5121482159a4",
+      "name": "Parse User Query"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "maxTokens": 9000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -544,
+        192
+      ],
+      "id": "91465720-475f-4a23-aaec-7a1c391e7a6c",
+      "name": "OpenAI Chat Model",
+      "notesInFlow": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API (create in n8n)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert freelance job analyst. You will evaluate 10 job postings and return a structured assessment for each: a detailed summary, a hot_score, and for the top 3 only — a one-sentence \"why top 3\" pitch.\n\nLanguage: The entire output must be strictly in English. All text (summaries, reason_why_top3, any string values) must be written in English only — no Russian or any other language.\n\n###\nROLE & OBJECTIVE\n###\n- Analyze each job in the order given ([0] to [9]).\n- For EACH job, produce a detailed summary that helps a freelancer decide quickly.\n- Assign hot_score 1–10: higher = more attractive (clear scope, reasonable effort, good pay/rate, interesting stack).\n- For the THREE jobs with the HIGHEST hot_score, add reason_why_top3. Every one of these three MUST have reason_why_top3 filled — never leave it empty. If any of the top 3 has no reason_why_top3, the output is invalid.\n\n###\nSUMMARY REQUIREMENTS (what to write)\n###\nFor each job's \"summary\", write 5–8 short bullet-like sentences (plain text, no markdown bullets) covering:\n1) What the client wants (1 sentence).\n2) The minimum viable MVP deliverable (1–2 sentences).\n3) Key technical requirements / stack (1 sentence).\n4) Estimated effort range in hours (best guess) AND a quick rationale (1 sentence).\n5) Budget/rate sanity check: is pay good for the scope? (1 sentence).\n6) Main risks/unknowns to clarify before starting (1 sentence).\n\nKeep it concise but more detailed than a typical 2–3 sentence summary.\n\n###\nOUTPUT SCHEMA (exact structure)\n###\n- \"results\": array of exactly 10 objects, in the SAME order as the input jobs.\n- Each object:\n  - \"summary\": string (must follow SUMMARY REQUIREMENTS above).\n  - \"hot_score\": number, 1–10.\n  - \"reason_why_top3\": string, ONLY in the 3 objects with the highest hot_score; omit for the other 7.\n- reason_why_top3: ONE short sentence, light marketing tone. Highlight what makes this vacancy attractive (pay, clarity, stack, scope). Examples: \"Clear scope and strong rate — looks like a clean 1–2 week win.\" / \"Good budget with a focused MVP and a modern stack.\"\n\n###\nOUTPUT RULES\n###\n- Respond with ONLY one valid JSON object. No markdown, no code fences, no text before or after the JSON.\n- Do not include: backticks, explanations, comments, trailing commas, single quotes. Use double quotes only.\n- Begin your response with { and end with }.\n- The \"results\" array must have exactly 10 elements.\n- The 3 objects with the highest hot_score must each include \"reason_why_top3\". Never omit reason_why_top3 for any of the top 3.\n\n###\nEXAMPLE (structure only; your content will differ)\n###\n{ \"results\": [\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 4 },\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 6 },\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 8, \"reason_why_top3\": \"One punchy sentence why this is a top pick.\" },\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 9, \"reason_why_top3\": \"Another one-sentence pitch.\" },\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 7, \"reason_why_top3\": \"Third top-3 reason.\" },\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 5 },\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 3 },\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 6 },\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 2 },\n  { \"summary\": \"Client wants ...\\nMVP: ...\\nStack: ...\\nEffort: ...\\nPay: ...\\nRisks: ...\", \"hot_score\": 5 }\n] }\n\n###\nINPUT — 10 jobs (order [0]–[9])\n###\n{{ $json.text }}",
+        "options": {
+          "batching": {
+            "batchSize": 1,
+            "delayBetweenBatches": 3000
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -560,
+        32
+      ],
+      "id": "a5741d96-bb54-4211-b160-8399ad04bef6",
+      "name": "AI Research Agent",
+      "retryOnFail": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "AI Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Job Search Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Title": "={{ $json.title }}",
+            "Job Description": "={{ $json.body }}",
+            "Tags": "={{ $json.tags }}",
+            "Budget": "={{ $json.budget }}",
+            "Hourly": "={{ $json.hourly }}",
+            "Posted At": "={{ $json.posted_at }}",
+            "Summary": "={{ $json.summary }}",
+            "Job URL": "={{ $json.job_url }}",
+            "Activity on job": "={{ $json.client_activity_text }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tags",
+              "displayName": "Tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Hourly",
+              "displayName": "Hourly",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Posted At",
+              "displayName": "Posted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job URL",
+              "displayName": "Job URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity on job",
+              "displayName": "Activity on job",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -32,
+        336
+      ],
+      "id": "6b07d3d3-2608-4ba1-9ebb-1027f746b82e",
+      "name": "Sheet Append 10 Jobs",
+      "credentials": {
+        "googleApi": {
+          "id": "Z48bZMjhUhaxSx09",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brightdata.com/request",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"zone\": \"upwork\",\n  \"url\": \"https://www.upwork.com/nx/search/jobs/?q={{ encodeURIComponent($json.filters) }}&sort=recency\",\n  \"format\": \"raw\"\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2144,
+        400
+      ],
+      "id": "4c74d7fd-cd24-4252-afe8-776e23681d07",
+      "name": "Search Jobs",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "notesInFlow": false,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "YOUR_BRIGHTDATA_BEARER_CREDENTIAL_ID",
+          "name": "Bright Data Bearer Token (create in n8n)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ========== WHERE TO GET HTML ==========\nconst raw = $input.first().json.data || $input.first().json.body || $input.first().json;\nconst html = typeof raw === 'string' ? raw : (raw && raw.data) ? raw.data : '';\n\nif (!html || html.length < 100) {\n  return [{ json: { error: 'no_html', message: 'HTML not received or too short' } }];\n}\n\n// ========== CLEAN TEXT ==========\nfunction cleanText(s) {\n  if (!s || typeof s !== 'string') return '';\n  return s\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\n// ========== BODY FROM BLOCK ==========\nfunction extractBody(block) {\n  let m = block.match(/class=\"air3-line-clamp-wrapper clamp mb-3\"[^>]*>([\\s\\S]*?)<\\/div/);\n  if (m) return cleanText(m[1]);\n  m = block.match(/data-test=\"job-description-text\"[^>]*>([\\s\\S]*?)</);\n  if (m) return cleanText(m[1]);\n  m = block.match(/data-test=\"JobDescription\"[^>]*>([\\s\\S]*?)<\\/section/);\n  if (m) return cleanText(m[1]);\n  return '';\n}\n\n// ========== PARSING ==========\n// First try by title link; if not found use JobTile (legacy).\nfunction getBlocks() {\n  const titleLinkMark = 'data-test=\"job-tile-title-link\"';\n  const indices = [];\n  let idx = html.indexOf(titleLinkMark);\n  while (idx !== -1) {\n    indices.push(idx);\n    idx = html.indexOf(titleLinkMark, idx + titleLinkMark.length);\n  }\n  if (indices.length > 0) {\n    const blocks = [];\n    for (let i = 0; i < indices.length; i++) {\n      const end = indices[i + 1] !== undefined ? indices[i + 1] : html.length;\n      blocks.push(html.slice(indices[i], end));\n    }\n    return blocks;\n  }\n  const marker = 'data-test=\"JobTile\"';\n  const blocks = [];\n  let pos = 0;\n  for (;;) {\n    const start = html.indexOf(marker, pos);\n    if (start === -1) break;\n    const next = html.indexOf(marker, start + marker.length);\n    const end = next === -1 ? html.length : next;\n    blocks.push(html.slice(start, end));\n    pos = end;\n  }\n  return blocks;\n}\n\nconst blocks = getBlocks();\nconst jobs = [];\n\nfor (const block of blocks) {\n  const titleM = block.match(/data-test=\"job-tile-title-link[^\"]*\"[^>]*>([\\s\\S]*?)<\\/a/i);\n  const title = titleM ? cleanText(titleM[1]) : '';\n  if (!title) continue;\n\n  const hrefM = block.match(/(?:<a[^>]*href=[\"']([^\"']+)[\"'][^>]*data-test=\"job-tile-title-link|data-test=\"job-tile-title-link[^\"]*\"[^>]*href=[\"']([^\"']+)[\"'])/i);\n  let job_url = (hrefM && (hrefM[1] || hrefM[2])) ? (hrefM[1] || hrefM[2]).trim() : '';\n  if (!job_url) {\n    const fallback = block.match(/<a[^>]+href=[\"']([^\"']*\\/jobs\\/[^\"']+)[\"']/i);\n    if (fallback && fallback[1]) job_url = fallback[1].trim();\n  }\n  if (job_url && !job_url.startsWith('http')) {\n    job_url = (job_url.startsWith('/') ? 'https://www.upwork.com' : 'https://www.upwork.com/') + job_url;\n  }\n\n  const body = extractBody(block);\n  const tagMatches = block.matchAll(/data-test=\"token\"[^>]*>[\\s\\S]*?<span[^>]*>([^<]+)<\\/span>/g);\n  const tagsArr = [];\n  for (const tm of tagMatches) {\n    const t = cleanText(tm[1]);\n    if (t) tagsArr.push(t);\n  }\n  const tags = [...new Set(tagsArr)].join(', ');\n  const postedM = block.match(/data-test=\"job-pubilshed-date\"[^>]*>([\\s\\S]*?)<\\/small>/);\n  const posted_at = postedM ? cleanText(postedM[1]) : '';\n  const hourlyM = block.match(/Hourly[\\s\\S]*?(\\$[\\d.,]+(?:\\s*-\\s*\\$[\\d.,]+)?)/i);\n  const hourly = hourlyM ? cleanText(hourlyM[1]) : '';\n  const budgetM = block.match(/(?:Budget|Est\\.?\\s*budget)[\\s\\S]*?(\\$[\\d.,]+)/i);\n  const budget = budgetM ? cleanText(budgetM[1]) : '';\n\n  jobs.push({ title, body, tags, posted_at, budget, hourly, job_url });\n}\n\nif (jobs.length === 0) return [{ json: { error: 'no_jobs', message: 'No jobs parsed from HTML' } }];\nreturn jobs.map(job => ({ json: job }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1936,
+        400
+      ],
+      "id": "6cfc9128-4ad0-4346-a46a-8df204f69d21",
+      "name": "Parse Search Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Month names (locale) for parsing Upwork date strings; do not remove\nconst RUS_MONTHS = {\n  'января': 0, 'февраля': 1, 'марта': 2, 'апреля': 3, 'мая': 4, 'июня': 5,\n  'июля': 6, 'августа': 7, 'сентября': 8, 'октября': 9, 'ноября': 10, 'декабря': 11\n};\n\nfunction relativeToRealDate(relativeStr) {\n  if (!relativeStr || typeof relativeStr !== 'string') return relativeStr || '';\n  const s = relativeStr.trim();\n\n  // Russian-style date e.g. \"1 February 2026\" -> convert to en-US\n  const ruMatch = s.match(/^(\\d{1,2})\\s+(\\S+)\\s+(\\d{4})\\s*г?\\.?$/i);\n  if (ruMatch) {\n    const [, day, monthName, year] = ruMatch;\n    const monthKey = monthName.toLowerCase();\n    const monthIndex = RUS_MONTHS[monthKey];\n    if (monthIndex !== undefined) {\n      const d = new Date(parseInt(year, 10), monthIndex, parseInt(day, 10));\n      if (!isNaN(d.getTime())) {\n        return d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });\n      }\n    }\n  }\n\n  const now = new Date();\n  const lastWeek = /\\blast\\s+week\\b/i.test(s) || /\\ba\\s+week\\s+ago\\b/i.test(s);\n  const yesterday = /\\byesterday\\b/i.test(s);\n  const today = /\\btoday\\b/i.test(s);\n  const lastMonth = /\\blast\\s+month\\b/i.test(s);\n  const lastYear = /\\blast\\s+year\\b/i.test(s);\n\n  let n = 1;\n  let unit = '';\n  if (lastWeek) { n = 1; unit = 'week'; }\n  else if (yesterday) { n = 1; unit = 'day'; }\n  else if (today) {\n    return now.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });\n  }\n  else if (lastMonth) { n = 1; unit = 'month'; }\n  else if (lastYear) { n = 1; unit = 'year'; }\n  else {\n    const numMatch = s.match(/\\d+/);\n    n = numMatch ? parseInt(numMatch[0], 10) : 1;\n    const u = s.match(/\\b(second|minute|hour|day|week|month|year)s?\\s+ago/i);\n    unit = (u && u[1]) ? u[1].toLowerCase() : '';\n  }\n\n  if (!unit) return s;\n\n  const d = new Date(now);\n  if (unit === 'second') d.setSeconds(d.getSeconds() - n);\n  else if (unit === 'minute') d.setMinutes(d.getMinutes() - n);\n  else if (unit === 'hour') d.setHours(d.getHours() - n);\n  else if (unit === 'day') d.setDate(d.getDate() - n);\n  else if (unit === 'week') d.setDate(d.getDate() - n * 7);\n  else if (unit === 'month') d.setMonth(d.getMonth() - n);\n  else if (unit === 'year') d.setFullYear(d.getFullYear() - n);\n  else return s;\n\n  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });\n}\n\nreturn items.map(item => {\n  const json = { ...item.json };\n  if (json.posted_at) {\n    json.posted_at = relativeToRealDate(json.posted_at);\n  }\n  return { json };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1712,
+        400
+      ],
+      "id": "ce567e18-103b-4f53-91c1-8d37a2ead542",
+      "name": "Normalize Posted Date"
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobs = $('Parse Client Activity').all();\nif (!jobs.length) return [];\n\nconst lines = jobs.map((item, i) => {\n  const j = item.json;\n  const activity = j.client_activity_text ? `\\nClient activity (invites/competition):\\n${j.client_activity_text}` : '';\n  return `[${i}] Title: ${j.title || ''}\\nBody: ${(j.body || '').slice(0, 800)}\\nTags: ${j.tags || ''}\\nBudget: ${j.budget || '—'} | Hourly: ${j.hourly || '—'}${activity}`;\n}).join('\\n\\n---\\n\\n');\n\nreturn [{ json: { text: lines } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        400
+      ],
+      "id": "6f8a17c6-d805-45bd-b4f3-87cc5ab38578",
+      "name": "Prepare Batch for AI"
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobs = $('Parse Client Activity').all();\nconst aiItem = $input.first().json;\nconst raw = aiItem.output ?? aiItem.message?.content ?? aiItem.text ?? aiItem.response ?? '';\nconst str = (typeof raw === 'string' ? raw : JSON.stringify(raw)).trim();\n\nlet results = [];\nvar codeBlockRe = new RegExp('\\u0060\\u0060\\u0060(?:json)?\\\\s*([\\\\s\\\\S]*?)\\u0060\\u0060\\u0060');\nvar codeBlock = codeBlockRe.exec(str);\nvar toParse = codeBlock ? codeBlock[1].trim() : str;\ntry {\n  var parsed = JSON.parse(toParse);\n  results = Array.isArray(parsed.results) ? parsed.results : (Array.isArray(parsed) ? parsed : []);\n} catch (_) {}\n\nif (jobs.length === 0) return [];\n\nreturn jobs.map(function(item, i) {\n  var job = item.json;\n  var r = results[i] || {};\n  var summary = r.summary != null ? String(r.summary) : '';\n  var hot_score = r.hot_score != null ? Number(r.hot_score) : null;\n  var reason_why_top3 = r.reason_why_top3 != null ? String(r.reason_why_top3) : null;\n  return {\n    json: {\n      ...job,\n      summary: summary,\n      hot_score: hot_score != null ? hot_score : undefined,\n      reason_why_top3: reason_why_top3 || undefined\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        336
+      ],
+      "id": "80dd14da-77cf-45e5-bffb-6873b186438a",
+      "name": "Parse AI Batch & Merge"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brightdata.com/request",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.job_url }}"
+            },
+            {
+              "name": "zone",
+              "value": "upwork"
+            },
+            {
+              "name": "format",
+              "value": "raw"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 240000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1504,
+        400
+      ],
+      "id": "4840abfb-ddac-4972-a8c1-f86a56fcaccc",
+      "name": "Load Job Card",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "YOUR_BRIGHTDATA_BEARER_CREDENTIAL_ID",
+          "name": "Bright Data Bearer Token (create in n8n)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const loadCardItems = $input.all();\nconst normalizedItems = $('Normalize Posted Date').all();\n\n// Only the block right after \"Activity on this job\" (no fallback to any ul)\n// Use new RegExp() to avoid breaking parser due to slashes in literal\nfunction getActivityBlock(html) {\n  const pattern1 = new RegExp('Activity on this job[\\\\s\\\\S]*?<ul[^>]*class=[\"\\\\\\\\]?[^\"\\\\\\\\]*client-activity-items[^\"\\\\\\\\]*[\"\\\\\\\\]?[^>]*>([\\\\s\\\\S]*?)(?:<\\\\/ul>|<\\\\\\\\/ul>)', 'i');\n  const pattern2 = new RegExp('Activity on this job[\\\\s\\\\S]*?<ul[^>]*class=\"[^\"]*client-activity-items[^\"]*\"[^>]*>([\\\\s\\\\S]*?)<\\\\/ul>', 'i');\n  const m = html.match(pattern1) || html.match(pattern2);\n  return m ? m[1] : '';\n}\n\nfunction parseFromCaItem(block) {\n  if (!block || block.length > 5000) return null;\n  const num = (label) => {\n    const esc = label.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n    const re = new RegExp(esc + '\\\\s*<\\\\/span>\\\\s*<(?:div|span)[^>]*>\\\\s*(\\\\d+)\\\\s*(?:<\\\\/|<\\/)', 'i');\n    const m = block.match(re);\n    return m ? parseInt(m[1], 10) : 0;\n  };\n  const interviewing = num('Interviewing:');\n  const invites_sent = num('Invites sent:');\n  const unanswered_invites = num('Unanswered invites:');\n  if (interviewing === 0 && invites_sent === 0 && unanswered_invites === 0) return null;\n  return { invites_sent, unanswered_invites, interviewing };\n}\n\nfunction numFromBlock(block, label) {\n  if (!block) return 0;\n  const re = new RegExp(label.replace(/[:\\s]+/g, '[\\\\s\\\\S]*?') + '[\\\\s\\\\S]*?<(?:div|span)[^>]*>\\\\s*(\\\\d+)\\\\s*</', 'i');\n  const m = block.match(re);\n  return m ? parseInt(m[1], 10) : 0;\n}\n\nconst output = [];\nfor (let i = 0; i < loadCardItems.length; i++) {\n  const item = loadCardItems[i];\n  const out = item.json || {};\n  let html = out.data || out.body || out.response || out.content || '';\n  if (typeof html !== 'string') html = String(html);\n\n  const activityBlock = getActivityBlock(html);\n  let invites_sent = 0, unanswered_invites = 0, interviewing = 0;\n  const caItem = parseFromCaItem(activityBlock);\n\n  if (caItem) {\n    invites_sent = caItem.invites_sent;\n    unanswered_invites = caItem.unanswered_invites;\n    interviewing = caItem.interviewing;\n  } else {\n    invites_sent = numFromBlock(activityBlock, 'Invites sent');\n    unanswered_invites = numFromBlock(activityBlock, 'Unanswered invites');\n    interviewing = numFromBlock(activityBlock, 'Interviewing');\n    if (invites_sent === unanswered_invites && unanswered_invites === interviewing && invites_sent > 0) {\n      invites_sent = 0; unanswered_invites = 0; interviewing = 0;\n    }\n  }\n\n  const client_activity_text = 'Invites: ' + invites_sent + '\\nUnanswered: ' + unanswered_invites + '\\nInterviewing: ' + interviewing;\n\n  const base = (normalizedItems[i] && normalizedItems[i].json) ? normalizedItems[i].json : {};\n  const json = {};\n  for (const k in base) { if (Object.prototype.hasOwnProperty.call(base, k)) json[k] = base[k]; }\n  json.client_activity_text = client_activity_text;\n  json.invites_sent = invites_sent;\n  json.unanswered_invites = unanswered_invites;\n  json.interviewing = interviewing;\n\n  output.push({ json: json });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1296,
+        400
+      ],
+      "id": "c8826a37-49b0-485b-9169-441fda42d132",
+      "name": "Parse Client Activity"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Parse AI Batch & Merge').all();\nif (!items.length) return [];\n\nconst sorted = [...items].sort((a, b) => {\n  const scoreA = Number(a.json.hot_score) || 0;\n  const scoreB = Number(b.json.hot_score) || 0;\n  return scoreB - scoreA;\n});\nreturn sorted.slice(0, 3).map(item => ({ json: item.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        336
+      ],
+      "id": "d30874a7-7b11-4010-90f1-d72a0cce1d0d",
+      "name": "Top 3 Hot"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map(item => {\n  const j = item.json;\n  const reason = (j.reason_why_top3 != null && String(j.reason_why_top3).trim()) ? String(j.reason_why_top3).trim() : '—';\n  const summary_for_hot = (j.summary || '') + '\\n\\nWhy in top 3: ' + reason;\n  return { json: { ...j, summary_for_hot } };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        336
+      ],
+      "id": "47b63fc8-0419-4b56-925e-bd70df67234f",
+      "name": "Summary for Hot"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Summary for Hot').all();\nconst query = $('Parse User Query').first().json.main_query || $('Parse User Query').first().json.filters || '';\n\nconst LINE = '────────────────────';\n\nlet body = '';\nbody += `🔹 *Request:* ${query || '—'}\\n\\n`;\nbody += `*Hot top*\\n${LINE}\\n\\n`;\n\nitems.forEach((item, i) => {\n  const j = item.json;\n  const title = (j.title || 'No title').replace(/\\*/g, '');\n  const url = j.job_url || '';\n  const summaryFull = (j.summary || '').trim();\n  const reason = (j.reason_why_top3 != null && String(j.reason_why_top3).trim()) ? String(j.reason_why_top3).trim() : '—';\n  const activity = (j.client_activity_text || '').trim() ? `Activity: ${j.client_activity_text.replace(/\\n/g, ' | ')}\\n\\n` : '';\n  const num = i + 1;\n  body += `*${num}. ${title}*\\n\\n`;\n  body += `${summaryFull || '—'}\\n\\nWhy in top 3: ${reason}\\n\\n`;\n  if (activity) body += activity;\n  if (url) body += `Open link Upwork(${url})\\n\\n`;\n  if (i < items.length - 1) body += `${LINE}\\n\\n`;\n});\n\nreturn [{ json: { telegramMessage: body.trim() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        336
+      ],
+      "id": "e6f030ee-9b8e-483c-b53b-fe91b44d0a21",
+      "name": "Prepare Telegram Message"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const j = $json;\n\nconst invites = Number(j.invites_sent) || 0;\nconst unanswered = Number(j.unanswered_invites) || 0;\nconst interviewing = Number(j.interviewing) || 0;\n\nconst engaged = Math.max(0, invites - unanswered);\nconst competition = engaged + interviewing;\nconst reply_attractiveness = Math.max(0, 10 - competition);\n\nreturn {\n  json: {\n    ...j,\n    engaged,\n    competition,\n    reply_attractiveness,\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        400
+      ],
+      "id": "cb181537-1620-4c0e-9ab6-c8d4a2f300c8",
+      "name": "Compute Reply Attractiveness"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "AI Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1557842959,
+          "mode": "list",
+          "cachedResultName": "Hot Search Resultt",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=1557842959"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Title": "={{ $json.title }}",
+            "Job Description": "={{ $json.body }}",
+            "Tags": "={{ $json.tags }}",
+            "Budget": "={{ $json.budget }}",
+            "Hourly": "={{ $json.hourly }}",
+            "Posted At": "={{ $json.posted_at }}",
+            "Summary": "={{ $json.summary }}",
+            "Job URL": "={{ $json.job_url }}",
+            "Activity on job": "={{ $json.client_activity_text }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tags",
+              "displayName": "Tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Hourly",
+              "displayName": "Hourly",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Posted At",
+              "displayName": "Posted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job URL",
+              "displayName": "Job URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity on job",
+              "displayName": "Activity on job",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        736,
+        336
+      ],
+      "id": "8dd8b2bc-e1da-4f93-be45-7b8b347a731f",
+      "name": "Sheet Append AI Top 3",
+      "credentials": {
+        "googleApi": {
+          "id": "Z48bZMjhUhaxSx09",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "AI Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 433633852,
+          "mode": "list",
+          "cachedResultName": "Code Top 3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=433633852"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Title": "={{ $json.title }}",
+            "Job Description": "={{ $json.body }}",
+            "Tags": "={{ $json.tags }}",
+            "Budget": "={{ $json.budget }}",
+            "Hourly": "={{ $json.hourly }}",
+            "Posted At": "={{ $json.posted_at }}",
+            "Job URL": "={{ $json.job_url.trim().replace(/\\/$/, '') }}",
+            "Activity on job": "={{ $json.client_activity_text }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tags",
+              "displayName": "Tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Hourly",
+              "displayName": "Hourly",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Posted At",
+              "displayName": "Posted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job URL",
+              "displayName": "Job URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity on job",
+              "displayName": "Activity on job",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -384,
+        1088
+      ],
+      "id": "45864575-3d19-4db9-84a2-e0531cd751b5",
+      "name": "Code Top 3",
+      "credentials": {
+        "googleApi": {
+          "id": "Z48bZMjhUhaxSx09",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const j = $json;\n\nfunction firstNumber(s) {\n  const str = String(s || '').replace(/,/g, '');\n  const m = str.match(/(\\d+(\\.\\d+)?)/);\n  return m ? Number(m[1]) : 0;\n}\n\nfunction hourlyMax(hourly) {\n  const str = String(hourly || '').replace(/,/g, '');\n  const nums = (str.match(/(\\d+(\\.\\d+)?)/g) || []).map(Number);\n  return nums.length ? Math.max(...nums) : 0;\n}\n\nconst budget_total_usd = firstNumber(j.budget);\nconst hourly_max_usd = hourlyMax(j.hourly);\n\nconst is_high_paying = budget_total_usd >= 500 || hourly_max_usd >= 80;\n\nreturn {\n  json: {\n    ...j,\n    budget_total_usd,\n    hourly_max_usd,\n    is_high_paying,\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        400
+      ],
+      "id": "93476c7c-33c2-4592-a987-62dd7eda77f0",
+      "name": "Mark High Paying"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (!items.length) return [];\n\n// score: base = reply_attractiveness (0–10), bonus if high-paying\nfunction score(it) {\n  const base = Number(it.json.reply_attractiveness) || 0;\n  const bonus = it.json.is_high_paying ? 3 : 0; // tweak if you want\n  return base + bonus;\n}\n\nconst sorted = [...items].sort((a, b) => score(b) - score(a));\n\n// ensure we include 1 high-paying if exists\nconst high = sorted.find(x => x.json.is_high_paying);\nconst out = [];\n\nif (high) out.push(high);\n\nfor (const it of sorted) {\n  if (out.length >= 3) break;\n  if (out.some(x => x.json.job_url && x.json.job_url === it.json.job_url)) continue;\n  out.push(it);\n}\n\nreturn out.map(x => ({ json: x.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -784,
+        1088
+      ],
+      "id": "5ab24ea4-46cf-431a-ba8c-36eac61b52d3",
+      "name": "Pick Code Hot 3"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "AI Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 433633852,
+          "mode": "list",
+          "cachedResultName": "Code Top 3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=433633852"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Job URL": "={{ (($json.job_url || $json['Job URL']) || '').toString().trim().replace(/\\/$/, '') }}",
+            "Summary": "={{ $json.summary }}"
+          },
+          "matchingColumns": [
+            "Job URL"
+          ],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Description",
+              "displayName": "Job Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tags",
+              "displayName": "Tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Budget",
+              "displayName": "Budget",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Hourly",
+              "displayName": "Hourly",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Posted At",
+              "displayName": "Posted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job URL",
+              "displayName": "Job URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Activity on job",
+              "displayName": "Activity on job",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        1296
+      ],
+      "id": "2ff6dac6-7751-4b43-9a2d-6b795ade8f7e",
+      "name": "Code Top 3 Update Summary",
+      "credentials": {
+        "googleApi": {
+          "id": "Z48bZMjhUhaxSx09",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nfunction norm(url) {\n  return (url || '').toString().trim().replace(/\\/+$/, '');\n}\n\nfunction getJobUrl(item) {\n  const j = item?.json;\n  return (j?.job_url ?? j?.['Job URL'] ?? '').toString().trim();\n}\n\nif (items.length < 3) return [];\n\n// Try both merge orders: [10 AI, 3 Code] or [3 Code, 10 AI]\nlet aiItems, codeHot3;\nif (items.length >= 13) {\n  const first10 = items.slice(0, 10);\n  const last3 = items.slice(10, 13);\n  const last10 = items.slice(3, 13);\n  const first3 = items.slice(0, 3);\n  // Check which group of 10 has summary (that is AI)\n  const hasSummary = (arr) => arr.some(i => (i.json?.summary ?? '').toString().length > 0);\n  if (hasSummary(first10)) {\n    aiItems = first10;\n    codeHot3 = last3;\n  } else {\n    aiItems = last10;\n    codeHot3 = first3;\n  }\n} else {\n  // Fewer than 13 items: take first 3 as Code, rest as AI\n  codeHot3 = items.slice(0, 3);\n  aiItems = items.slice(3, items.length);\n}\n\nconst urlToAi = new Map(\n  aiItems\n    .filter(i => getJobUrl(i))\n    .map(i => [norm(getJobUrl(i)), i.json])\n);\n\nreturn codeHot3.map(item => {\n  const url = getJobUrl(item);\n  const aiJson = url ? urlToAi.get(norm(url)) : null;\n  return {\n    json: {\n      ...item.json,\n      summary: aiJson?.summary ?? ''\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        1072
+      ],
+      "id": "72185612-205b-4638-88f0-353c5eb4b6b4",
+      "name": "Filter Code Hot 3 for Summary"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst urls = items.map(i => i.json.job_url).filter(Boolean);\nconst staticData = $getWorkflowStaticData('global');\nstaticData.codeHot3Urls = urls;\nreturn items.map(i => ({ json: i.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        1088
+      ],
+      "id": "efdb3d24-7a18-4a04-ae78-020c96607d82",
+      "name": "Store Code Hot 3 URLs"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -192,
+        1072
+      ],
+      "id": "989ecdbf-77cf-45fb-99ab-5f9d3588bbd0",
+      "name": "Merge AI and Code Top 3"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Incoming Request').first().json.message.chat.id }}",
+        "text": "=Choose report:",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "AI top 3",
+                    "additionalFields": {
+                      "callback_data": "ai_top3"
+                    }
+                  },
+                  {
+                    "text": "Code top 3",
+                    "additionalFields": {
+                      "callback_data": "code_top3"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1792,
+        336
+      ],
+      "id": "5d8988c5-7135-40f3-9e3c-d315b18e6ed1",
+      "name": "Send Buttons",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot (create in n8n)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prefer items with summary (from Filter or Code Top 3 Update Summary); fallback to Pick Code Hot 3\nconst fromInput = $input.all();\nconst items = (fromInput.length >= 3 && fromInput.some(i => (i.json?.summary ?? i.json?.Summary ?? '').toString().trim()))\n  ? fromInput\n  : $('Pick Code Hot 3').all();\n\nconst query = $('Parse User Query').first().json.main_query || $('Parse User Query').first().json.filters || '';\n\nconst LINE = '────────────────────';\n\nfunction unamp(str) {\n  return (str || '').toString().replace(/&amp;/g, '&');\n}\n\nlet body = '';\nbody += `🔹 *Request:* ${query || '—'}\\n\\n`;\nbody += `*Code top 3* (by reply attractiveness)\\n${LINE}\\n\\n`;\n\nitems.forEach((item, i) => {\n  const j = item.json;\n  const title = unamp((j.title || j.Title || 'No title').replace(/\\*/g, ''));\n  const url = (j.job_url || j['Job URL'] || '').toString().trim();\n  const summaryFull = (j.summary || j.Summary || '').toString().trim();\n  const replyAtt = j.reply_attractiveness != null ? j.reply_attractiveness : '';\n  const whyLine = replyAtt !== '' ? `Why in top 3: Reply attractiveness: ${replyAtt}` : 'Why in top 3: —';\n  const activity = (j.client_activity_text || j['Activity on job'] || '').toString().trim()\n    ? `Activity: ${(j.client_activity_text || j['Activity on job']).replace(/\\n/g, ' | ')}\\n\\n`\n    : '';\n  const num = i + 1;\n  body += `*${num}. ${title}*\\n\\n`;\n  body += `${summaryFull || '—'}\\n\\n${whyLine}\\n\\n`;\n  if (activity) body += activity;\n  if (url) body += `Open link Upwork(${url})\\n\\n`;\n  if (i < items.length - 1) body += `${LINE}\\n\\n`;\n});\n\nreturn [{ json: { codeTop3Message: body.trim() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        1072
+      ],
+      "id": "65ccb58f-2a8f-40d3-a3bb-3650478230c8",
+      "name": "Prepare Code Top 3 Message"
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatId = $('Incoming Request').first().json.message?.chat?.id || '';\nconst aiMsg = $('Prepare Telegram Message').first().json.telegramMessage || '';\nconst codeMsg = $('Prepare Code Top 3 Message').first().json.codeTop3Message || '';\nconst timestamp = new Date().toISOString();\nreturn [{ json: { chat_id: chatId, ai_top3_message: aiMsg, code_top3_message: codeMsg, timestamp } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        336
+      ],
+      "id": "3654c4bd-dccd-4f33-bca1-20ce22b1e4d4",
+      "name": "Prepare Report Cache"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        1056
+      ],
+      "id": "9a4f5c10-549d-40a4-b802-21824e38d30a",
+      "name": "Merge for Cache"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "AI Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2010377293,
+          "mode": "list",
+          "cachedResultName": "TelegramReportCache",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=2010377293"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ChatId": "={{ $json.chat_id }}",
+            "Timestamp": "={{ $json.timestamp }}",
+            "AiTop3Message": "={{ $json.ai_top3_message }}",
+            "CodeTop3Message": "={{ $json.code_top3_message }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ChatId",
+              "displayName": "ChatId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AiTop3Message",
+              "displayName": "AiTop3Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CodeTop3Message",
+              "displayName": "CodeTop3Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1536,
+        336
+      ],
+      "id": "e928daca-28bb-4394-95a2-9ce8e825ff7a",
+      "name": "Cache Reports",
+      "credentials": {
+        "googleApi": {
+          "id": "Z48bZMjhUhaxSx09",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "kechpir92@gmail.com",
+        "toEmail": "kechpir@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "html": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ],
+      "id": "be483a88-ef1b-49fb-aa93-f06fa28c8b2b",
+      "name": "Send an Email",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "Gmail SMTP (create in n8n)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 13
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        0
+      ],
+      "id": "b1d73f3d-9a8e-4bd0-999a-d99977de2111",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "AI Lead Research",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Job Search Results",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        112,
+        0
+      ],
+      "id": "622a484f-3801-4c4b-9f58-d30365277285",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "Z48bZMjhUhaxSx09",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\nconst todayStr = today.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });\n\nconst rows = $input.all();\nconst items = rows\n  .map(item => item.json)\n  .filter(row => {\n    const posted = (row['Posted At'] || row.posted_at || row.PostedAt || '').toString().trim();\n    if (!posted) return false;\n    return posted.includes(today.getDate().toString()) && posted.includes((today.getMonth() + 1).toString());\n  })\n  .slice(0, 10);\n\nreturn items.map(item => ({ json: item }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        0
+      ],
+      "id": "bc33100c-6864-4e6a-870b-cc790a8f72e6",
+      "name": "Filter Today 10 Jobs"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(i => i.json);\n\nfunction escapeHtml(str) {\n  if (!str) return '';\n  return String(str)\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;');\n}\n\nif (items.length === 0) {\n  const subject = 'Нет свежих вакансий за ' + new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });\n  const body = '<p>За сегодня в листе Job Search Results не найдено записей с сегодняшней датой в Posted At.</p>';\n  return [{ json: { subject, body } }];\n}\n\nconst rows = items.map((row, i) => {\n  const title = escapeHtml(row.Title || row.title || '—');\n  const url = (row['Job URL'] || row.job_url || row.JobUrl || '').trim();\n  const posted = escapeHtml(row['Posted At'] || row.posted_at || '');\n  const num = i + 1;\n  const link = url ? `<a href=\"${escapeHtml(url)}\">${title}</a>` : title;\n  return `<tr><td style=\"padding:8px;border-bottom:1px solid #eee\">${num}</td><td style=\"padding:8px;border-bottom:1px solid #eee\">${link}</td><td style=\"padding:8px;border-bottom:1px solid #eee\">${posted}</td></tr>`;\n}).join('');\n\nconst body = `\n<table style=\"border-collapse:collapse; width:100%; max-width:800px; font-family:sans-serif; font-size:14px\">\n  <thead>\n    <tr style=\"background:#f5f5f5\">\n      <th style=\"padding:10px; text-align:left; border-bottom:2px solid #ddd\">#</th>\n      <th style=\"padding:10px; text-align:left; border-bottom:2px solid #ddd\">Вакансия</th>\n      <th style=\"padding:10px; text-align:left; border-bottom:2px solid #ddd\">Posted</th>\n    </tr>\n  </thead>\n  <tbody>\n    ${rows}\n  </tbody>\n</table>\n`;\n\nconst subject = '10 свежих вакансий за ' + new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });\nreturn [{ json: { subject, body } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        0
+      ],
+      "id": "7e1f0067-2ba3-4c54-a9bd-c14f766904ca",
+      "name": "Prepare Daily Email Body"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Incoming Request": {
+      "main": [
+        [
+          {
+            "node": "Parse User Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse User Query": {
+      "main": [
+        [
+          {
+            "node": "Search Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Research Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Research Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Batch & Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Jobs": {
+      "main": [
+        [
+          {
+            "node": "Parse Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Search Results": {
+      "main": [
+        [
+          {
+            "node": "Normalize Posted Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Posted Date": {
+      "main": [
+        [
+          {
+            "node": "Load Job Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Batch for AI": {
+      "main": [
+        [
+          {
+            "node": "AI Research Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Batch & Merge": {
+      "main": [
+        [
+          {
+            "node": "Sheet Append 10 Jobs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge AI and Code Top 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Job Card": {
+      "main": [
+        [
+          {
+            "node": "Parse Client Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Client Activity": {
+      "main": [
+        [
+          {
+            "node": "Compute Reply Attractiveness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Top 3 Hot": {
+      "main": [
+        [
+          {
+            "node": "Summary for Hot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary for Hot": {
+      "main": [
+        [
+          {
+            "node": "Sheet Append AI Top 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "Merge for Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Code Top 3 Message": {
+      "main": [
+        [
+          {
+            "node": "Merge for Cache",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge for Cache": {
+      "main": [
+        [
+          {
+            "node": "Prepare Report Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Report Cache": {
+      "main": [
+        [
+          {
+            "node": "Cache Reports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Reports": {
+      "main": [
+        [
+          {
+            "node": "Send Buttons",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Reply Attractiveness": {
+      "main": [
+        [
+          {
+            "node": "Mark High Paying",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark High Paying": {
+      "main": [
+        [
+          {
+            "node": "Prepare Batch for AI",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pick Code Hot 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Code Hot 3": {
+      "main": [
+        [
+          {
+            "node": "Store Code Hot 3 URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Code Hot 3 for Summary": {
+      "main": [
+        [
+          {
+            "node": "Prepare Code Top 3 Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code Top 3 Update Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Code Hot 3 URLs": {
+      "main": [
+        [
+          {
+            "node": "Code Top 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Top 3": {
+      "main": [
+        [
+          {
+            "node": "Merge AI and Code Top 3",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Sheet Append 10 Jobs": {
+      "main": [
+        [
+          {
+            "node": "Top 3 Hot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet Append AI Top 3": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge AI and Code Top 3": {
+      "main": [
+        [
+          {
+            "node": "Filter Code Hot 3 for Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter Today 10 Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Today 10 Jobs": {
+      "main": [
+        [
+          {
+            "node": "Prepare Daily Email Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Daily Email Body": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Almaty",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "51b14a14-dddc-432b-aced-dda7d9e464e5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "343d15c90a40588ed963a29b46b1fb7809fabbde92a2199832a4ff9f1d2814f4"
+  },
+  "id": "aDqQTMyyR7H7o2Hb",
+  "tags": []
+}
