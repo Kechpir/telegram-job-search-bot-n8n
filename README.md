@@ -21,7 +21,7 @@ All credentials and the spreadsheet ID are placeholders in the JSON; you add you
 
 1. **Trigger** — User sends a text message to the Telegram bot.
 2. **Parse & notify** — Query is parsed; bot replies “⏳ Searching…”.
-3. **Search** — Bright Data is called to fetch Upwork search results (HTML).
+3. **Search** — Bright Data is called to fetch search results (HTML).
 4. **Error handling** — If search fails (4xx/error) → “BrightData scraping failed.” and stop. If no jobs parsed → “No jobs found.” and stop.
 5. **Parse results** — HTML is parsed into up to 10 jobs (title, body, tags, budget, hourly, posted_at, job_url).
 6. **Normalize dates** — Relative/localized dates are converted to a standard format.
